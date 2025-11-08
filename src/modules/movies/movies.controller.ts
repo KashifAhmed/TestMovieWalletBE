@@ -13,6 +13,7 @@ import {
   FileTypeValidator,
   BadRequestException,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -21,6 +22,7 @@ import { extname } from 'path';
 import { MoviesService } from './movies.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
+import { PaginationDto } from './dto/pagination.dto';
 import { memoryStorage } from 'multer';
 import { UploadService } from 'src/shared/upload.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -32,68 +34,68 @@ import type { User } from '@supabase/supabase-js';
 @UseGuards(SupabaseAuthGuard)
 @Controller('movies')
 export class MoviesController {
-  constructor(private readonly moviesService: MoviesService, private readonly uploadService: UploadService) {}
+  constructor(private readonly moviesService: MoviesService, private readonly uploadService: UploadService) { }
 
   @Post()
-@ApiOperation({ summary: 'Create a new movie with image upload' })
-@ApiConsumes('multipart/form-data')
-@ApiBody({
-  schema: {
-    type: 'object',
-    properties: {
-      title: { type: 'string' },
-      publishYear: { type: 'number' },
-      image: {
-        type: 'string',
-        format: 'binary',
+  @ApiOperation({ summary: 'Create a new movie with image upload' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        publishYear: { type: 'number' },
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
       },
+      required: ['title', 'publishYear'],
     },
-    required: ['title', 'publishYear'],
-  },
-})
-@UseInterceptors(
-  FileInterceptor('image', {
-    storage: memoryStorage(), // Changed from diskStorage to memoryStorage
-    limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB
-    },
-  }),
-)
-create(
-  @Body() createMovieDto: CreateMovieDto,
-  @SupabaseUser() user: User,
-  @UploadedFile(
-    new ParseFilePipe({
-      validators: [
-        new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
-        // new FileTypeValidator({ fileType: /(jpg|jpeg|png|gif|webp)$/ }), TODO: Enable this option later
-      ],
-      fileIsRequired: false,
+  })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(), // Changed from diskStorage to memoryStorage
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
     }),
   )
-  file?: Express.Multer.File,
-) {
-  // You can now access user.id, user.email, etc.
-  console.log('Authenticated user:', user.id, user.email);
-  if (file) {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+  create(
+    @Body() createMovieDto: CreateMovieDto,
+    @SupabaseUser() user: User,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          // new FileTypeValidator({ fileType: /(jpg|jpeg|png|gif|webp)$/ }), TODO: Enable this option later
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
+  ) {
+    // You can now access user.id, user.email, etc.
+    console.log('Authenticated user:', user.id, user.email);
+    if (file) {
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
 
-    try {
-      this.uploadService.validateFile(file, {allowedMimeTypes, maxSize});
-    } catch (error) {
-      throw new BadRequestException(error.message);
+      try {
+        this.uploadService.validateFile(file, { allowedMimeTypes, maxSize });
+      } catch (error) {
+        throw new BadRequestException(error.message);
+      }
+
+      return this.moviesService.create(createMovieDto, user.id, file);
     }
-
-    return this.moviesService.create(createMovieDto, user.id, file);
+    return this.moviesService.create(createMovieDto, user.id);
   }
-  return this.moviesService.create(createMovieDto, user.id);
-}
 
   @Get()
-  @ApiOperation({ summary: 'Get all movies for the authenticated user' })
-  findAll(@SupabaseUser() user: User) {
-    return this.moviesService.findAll(user.id);
+  @ApiOperation({ summary: 'Get all movies for the authenticated user with pagination' })
+  findAll(@SupabaseUser() user: User, @Query() paginationDto: PaginationDto) {
+    return this.moviesService.findAll(user.id, paginationDto);
   }
 
   @Get(':id')

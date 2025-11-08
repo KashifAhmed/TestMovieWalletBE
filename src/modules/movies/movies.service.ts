@@ -1,12 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Movie } from './entities/movie.entity';
-import { CreateMovieDto } from './dto/create-movie.dto';
-import { UpdateMovieDto } from './dto/update-movie.dto';
-import { Multer } from 'multer';
-import { FileService } from 'src/shared/file.service';
 import { CloudinaryService } from 'src/shared/cloudinary.service';
+import { FileService } from 'src/shared/file.service';
+import { Repository } from 'typeorm';
+import { CreateMovieDto } from './dto/create-movie.dto';
+import { PaginatedResult, PaginationDto } from './dto/pagination.dto';
+import { UpdateMovieDto } from './dto/update-movie.dto';
+import { Movie } from './entities/movie.entity';
 
 @Injectable()
 export class MoviesService {
@@ -22,7 +22,7 @@ export class MoviesService {
     private readonly movieRepository: Repository<Movie>,
     private readonly fileService: FileService,
     private readonly cloudinaryService: CloudinaryService
-  ) {}
+  ) { }
 
   async create(createMovieDto: CreateMovieDto, userId: string, file?: Express.Multer.File): Promise<Movie> {
     const movieData: Partial<Movie> = {
@@ -41,13 +41,43 @@ export class MoviesService {
     return await this.movieRepository.save(movie);
   }
 
-  async findAll(userId: string): Promise<Movie[]> {
-    return await this.movieRepository.find({
-      where: { userId }, // Only return movies for the authenticated user
+  async findAll(userId: string, paginationDto?: PaginationDto): Promise<PaginatedResult<Movie>> {
+    const { page = 1, limit = 10 } = paginationDto || {};
+
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const totalItems = await this.movieRepository.count({
+      where: { userId },
+    });
+
+    // Get paginated data
+    const data = await this.movieRepository.find({
+      where: { userId },
       order: {
         createdAt: 'DESC',
       },
+      skip,
+      take: limit,
     });
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalItems / limit);
+    const hasNextPage = page < totalPages;
+    const hasPreviousPage = page > 1;
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage,
+        hasPreviousPage,
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Movie> {
