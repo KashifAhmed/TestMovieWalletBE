@@ -20,6 +20,9 @@ export class Movie {
   @Column({ type: 'varchar', length: 500, nullable: true })
   image: string; // Stores the file path/URL of the uploaded image
 
+  @Column({ type: 'uuid', name: 'user_id' })
+  userId: string; // Supabase user ID
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

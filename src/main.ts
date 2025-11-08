@@ -15,8 +15,20 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('MovieVauletBE')
+    .setDescription('Movie Vault API with Supabase Authentication')
     .setVersion('1.0')
-    .addTag('movie-vaulet')
+    .addTag('movies')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter your Supabase JWT token',
+        in: 'header',
+      },
+      'bearer', // This is the name that matches @ApiBearerAuth() in controllers
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);

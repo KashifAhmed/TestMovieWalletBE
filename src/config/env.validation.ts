@@ -44,6 +44,28 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   DB_LOGGING?: string;
+
+  @IsString()
+  SUPABASE_URL: string;
+
+  @IsString()
+  SUPABASE_ANON_KEY: string;
+
+  @IsOptional()
+  @IsString()
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  CLOUDINARY_CLOUD_NAME?: string;
+
+  @IsString()
+  @IsOptional()
+  CLOUDINARY_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  CLOUDINARY_API_SECRET?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

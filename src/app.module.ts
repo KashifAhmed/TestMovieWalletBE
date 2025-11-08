@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { databaseConfig } from './config/database.config';
 import { validate } from './config/env.validation';
 import { MoviesModule } from './modules/movies/movies.module';
+import { SupabaseService } from './config/supabase.config';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MoviesModule } from './modules/movies/movies.module';
     MoviesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SupabaseService],
+  exports: [SupabaseService],
 })
 export class AppModule {}
