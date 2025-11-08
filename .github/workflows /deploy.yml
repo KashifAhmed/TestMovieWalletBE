@@ -1,0 +1,46 @@
+name: Deploy Node.js to EC2 via Git Push
+
+on:
+  push:
+    branches: [ main, staging ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    env:
+      EC2_HOST: ${{ github.ref == 'refs/heads/main' && secrets.EC2_HOST || secrets.STAGING_EC2_HOST }}
+      DEPLOY_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch full history for git push
+    
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+    
+    - name: Add SSH known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Test SSH connection
+      run: |
+        ssh ${{ secrets.EC2_USER }}@${{ env.EC2_HOST }} "echo 'SSH connection successful to ${{ env.DEPLOY_ENV }} environment'"
+    
+    - name: Deploy via Git Push
+      run: |
+        echo "Deploying to ${{ env.DEPLOY_ENV }} EC2 server..."
+        
+        # Add EC2 as remote (using SSH)
+        git remote add ec2 ${{ secrets.EC2_USER }}@${{ env.EC2_HOST }}:/home/services/movie_wallet_BE.git
+        
+        # Push to EC2 repository
+        echo "Pushing code to ${{ env.DEPLOY_ENV }} EC2..."
+        git push -f ec2 HEAD:refs/heads/main
+        
+        echo "Deployment to ${{ env.DEPLOY_ENV }} completed successfully!"
